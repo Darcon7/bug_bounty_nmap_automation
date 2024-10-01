@@ -32,6 +32,19 @@ def create_project_directory(target_name):
     
     return project_name
 
+# Function to run Sublist3r for subdomain enumeration
+def run_sublist3r(domain, project_name):
+    clean_name = clean_target_name(domain)
+    sublist3r_output_path = os.path.join(project_name, 'recon', f'{clean_name}_subdomains.txt')
+    
+    print(f"Running Sublist3r for {domain}...")
+    subprocess.run([
+        'python3', 'Sublist3r/sublist3r.py', '-d', domain, '-o', sublist3r_output_path
+    ])
+    
+    print(f"Sublist3r scan completed for {domain}. Subdomains saved.")
+    return sublist3r_output_path
+
 # Function to run an in-scope Nmap scan for bug bounty targets
 def run_in_scope_nmap_scan(target_ip, target_name, project_name):
     clean_name = clean_target_name(target_name)
@@ -64,19 +77,6 @@ def run_in_scope_nmap_scan(target_ip, target_name, project_name):
     print(f"Scan completed for {target_name}. Reports saved.")
     
     return nmap_txt_output_path, vuln_output_path
-
-# Function to run Sublist3r for subdomain enumeration
-def run_sublist3r(domain, project_name):
-    clean_name = clean_target_name(domain)
-    sublist3r_output_path = os.path.join(project_name, 'recon', f'{clean_name}_subdomains.txt')
-    
-    print(f"Running Sublist3r for {domain}...")
-    subprocess.run([
-        'python3', 'Sublist3r/sublist3r.py', '-d', domain, '-o', sublist3r_output_path
-    ])
-    
-    print(f"Sublist3r scan completed for {domain}. Subdomains saved.")
-    return sublist3r_output_path
 
 # Function to summarize the Nmap scan results
 def summarize_nmap_report(nmap_txt_path):
