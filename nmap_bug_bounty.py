@@ -3,6 +3,7 @@ import subprocess
 import socket
 import csv
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Function to clean and convert target name to a valid filename
 def clean_target_name(target):
@@ -64,6 +65,19 @@ def run_in_scope_nmap_scan(target_ip, target_name, project_name):
     
     return nmap_txt_output_path, vuln_output_path
 
+# Function to run Sublist3r for subdomain enumeration
+def run_sublist3r(domain, project_name):
+    clean_name = clean_target_name(domain)
+    sublist3r_output_path = os.path.join(project_name, 'recon', f'{clean_name}_subdomains.txt')
+    
+    print(f"Running Sublist3r for {domain}...")
+    subprocess.run([
+        'python3', 'Sublist3r/sublist3r.py', '-d', domain, '-o', sublist3r_output_path
+    ])
+    
+    print(f"Sublist3r scan completed for {domain}. Subdomains saved.")
+    return sublist3r_output_path
+
 # Function to summarize the Nmap scan results
 def summarize_nmap_report(nmap_txt_path):
     open_ports = []
@@ -119,34 +133,52 @@ def parse_csv_for_targets(csv_file_path):
                 targets.append(row[0])  # Assuming the target is in the first column
     return targets
 
+# Function to run scan for a target
+def run_scan_for_target(target, project_name):
+    try:
+        target_ip = socket.gethostbyname(target)
+        print(f"Scanning {target} (IP: {target_ip})...")
+        sublist3r_output_path = run_sublist3r(target, project_name)
+        nmap_txt_output_path, vuln_output_path = run_in_scope_nmap_scan(target_ip, target, project_name)
+        return target, (nmap_txt_output_path, vuln_output_path)
+    except Exception as e:
+        print(f"Failed to scan {target}: {e}")
+        return target, None
+
 # Main execution
 if __name__ == '__main__':
-    # Path to your CSV file containing targets
-    csv_file_path = 'scopes_for_khealth_at_2024-09-26_01_33_32_UTC.csv'
+    # Prompt for target name
+    target_name = input("Enter the target name: ")
     
-    # Parse the CSV file for targets
-    targets = parse_csv_for_targets(csv_file_path)
+    # Prompt for CSV file path
+    csv_file_path = input("Enter the path to the CSV file containing targets (or press Enter to skip): ")
+    
+    # Parse the CSV file for targets if provided
+    if csv_file_path:
+        targets = parse_csv_for_targets(csv_file_path)
+    else:
+        targets = [target_name]
     
     # Create project directory with timestamp and target details
-    project_name = create_project_directory('khealth')
+    project_name = create_project_directory(target_name)
     
     # Dictionary to store the paths of reports for each target
     target_reports = {}
 
-    # Loop through all the targets from the CSV and run the Nmap scan for each
-    for target in targets:
-        try:
-            target_ip = socket.gethostbyname(target)
-            print(f"Scanning {target} (IP: {target_ip})...")
-            nmap_txt_output_path, vuln_output_path = run_in_scope_nmap_scan(target_ip, target, project_name)
-            
-            # Save the report paths for final summary
-            target_reports[target] = (nmap_txt_output_path, vuln_output_path)
-        
-        except Exception as e:
-            print(f"Failed to scan {target}: {e}")
-    
+    # Loop through all the targets and run the Nmap scan for each
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        future_to_target = {executor.submit(run_scan_for_target, target, project_name): target for target in targets}
+        for future in as_completed(future_to_target):
+            target = future_to_target[future]
+            try:
+                result = future.result()
+                if result:
+                    target, reports = result
+                    if reports:
+                        target_reports[target] = reports
+            except Exception as e:
+                print(f"Error processing target {target}: {e}")
+
     # Generate a final summary report
     generate_final_report(project_name, target_reports)
-    
     print(f"All scans completed for targets listed in {csv_file_path}.")
