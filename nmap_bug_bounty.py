@@ -4,6 +4,8 @@ import socket
 import csv
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from tkinter import Tk
+from tkinter.filedialog import askopenfilename
 
 # Function to clean and convert target name to a valid filename
 def clean_target_name(target):
@@ -150,8 +152,9 @@ if __name__ == '__main__':
     # Prompt for target name
     target_name = input("Enter the target name: ")
     
-    # Prompt for CSV file path
-    csv_file_path = input("Enter the path to the CSV file containing targets (or press Enter to skip): ")
+    # Use tkinter to open a file dialog for selecting the CSV file
+    Tk().withdraw()  # We don't want a full GUI, so keep the root window from appearing
+    csv_file_path = askopenfilename(title="Select the CSV file containing targets", filetypes=[("CSV files", "*.csv")])
     
     # Parse the CSV file for targets if provided
     if csv_file_path:
