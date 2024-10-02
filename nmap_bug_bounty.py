@@ -128,11 +128,15 @@ def generate_final_report(project_name, target_reports):
 # Function to extract IP addresses or domains from a CSV file
 def parse_csv_for_targets(csv_file_path):
     targets = []
-    with open(csv_file_path, newline='') as csvfile:
-        reader = csv.reader(csvfile)
-        for row in reader:
-            if row:
-                targets.append(row[0])  # Assuming the target is in the first column
+    try:
+        with open(csv_file_path, newline='') as csvfile:
+            reader = csv.reader(csvfile)
+            for row in reader:
+                if row:
+                    targets.append(row[0])  # Assuming the target is in the first column
+        print(f"Targets extracted from CSV: {targets}")
+    except Exception as e:
+        print(f"Error reading CSV file: {e}")
     return targets
 
 # Function to run scan for a target
